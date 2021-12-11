@@ -3,6 +3,31 @@ import logging
 from telegram import Update, ForceReply
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
+import gensim
+import joblib
+
+import numpy as np
+import nltk
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from email_preproccessing import lemmatize_text, del_punct_symbols, del_stop_words
+
+np.random.seed(432)
+nltk.download('stopwords')
+nltk.download('wordnet')
+stop_words = set(stopwords.words('english'))
+lemmatizer = WordNetLemmatizer()
+
+model_d2v = gensim.models.doc2vec.Doc2Vec.load('model_weights/doc2vec_model')
+classifier = joblib.load('model_weights/lof_model.sav')
+
+def get_prediction(email_text: str):
+    test_bodies = lemmatize_text(del_stop_words(del_punct_symbols([email_text]), stop_words), lemmatizer)
+    X_test = np.array([model_d2v.infer_vector(vec) for vec in test_bodies])
+    res = classifier.predict(X_test)
+    res[res==-1] = 0
+    return res
+
 # Enable logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -27,16 +52,18 @@ def help_command(update: Update, context: CallbackContext) -> None:
     update.message.reply_text('Help!')
 
 
-def echo(update: Update, context: CallbackContext) -> None:
+def form_reply(update: Update, context: CallbackContext) -> None:
     """Echo the user message."""
     #update.message.reply_text(update.message.text)
-    update.message.reply_text("Этот текст подозрителен!")
+    pred = get_prediction(update.message.text)
+    response_text = "Текст не вызывает подозрения" if pred == 1 else "Этот текст подозрителен!"
+    update.message.reply_text(response_text)
 
 
 def main() -> None:
     """Start the bot."""
     # Create the Updater and pass it your bot's token.
-    updater = Updater("5070183192:AAEwpQ7JSEqZkC6fD7LMsUe2697bLW1FpfU")
+    updater = Updater("!!!")
 
     # Get the dispatcher to register handlers
     dispatcher = updater.dispatcher
@@ -46,7 +73,7 @@ def main() -> None:
     dispatcher.add_handler(CommandHandler("help", help_command))
 
     # on non command i.e message - echo the message on Telegram
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, echo))
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, form_reply))
 
     # Start the Bot
     updater.start_polling()
