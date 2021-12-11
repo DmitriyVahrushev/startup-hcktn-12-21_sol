@@ -26,7 +26,7 @@ def get_prediction(email_text: str):
     X_test = np.array([model_d2v.infer_vector(vec) for vec in test_bodies])
     res = classifier.predict(X_test)
     res[res==-1] = 0
-    return res
+    return res[0]
 
 # Enable logging
 logging.basicConfig(
@@ -36,8 +36,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Define a few command handlers. These usually take the two arguments update and
-# context.
 def start(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /start is issued."""
     user = update.effective_user
@@ -49,30 +47,22 @@ def start(update: Update, context: CallbackContext) -> None:
 
 def help_command(update: Update, context: CallbackContext) -> None:
     """Send a message when the command /help is issued."""
-    update.message.reply_text('Help!')
+    update.message.reply_text('Отправь текст письмо в чат и получи оценку того, насколько это сообщение легимно')
 
 
 def form_reply(update: Update, context: CallbackContext) -> None:
-    """Echo the user message."""
-    #update.message.reply_text(update.message.text)
     pred = get_prediction(update.message.text)
     response_text = "Текст не вызывает подозрения" if pred == 1 else "Этот текст подозрителен!"
     update.message.reply_text(response_text)
 
 
 def main() -> None:
-    """Start the bot."""
-    # Create the Updater and pass it your bot's token.
-    updater = Updater("!!!")
-
-    # Get the dispatcher to register handlers
+    updater = Updater("!!!!")
     dispatcher = updater.dispatcher
 
-    # on different commands - answer in Telegram
     dispatcher.add_handler(CommandHandler("start", start))
     dispatcher.add_handler(CommandHandler("help", help_command))
 
-    # on non command i.e message - echo the message on Telegram
     dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, form_reply))
 
     # Start the Bot
